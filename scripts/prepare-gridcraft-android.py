@@ -432,6 +432,15 @@ patch(
     "avoid automatic Hebrew selection in web builds without Hebrew fonts",
 )
 
+# 10. Android installs should start in Hebrew, while desktop builds keep their English
+#     default. The normal persisted UI preference still takes precedence after the first launch.
+patch(
+    "crates/ui-egui/src/lib.rs",
+    "            language: i18n::Language::En,\n",
+    "            language: if cfg!(target_os = \"android\") { i18n::Language::He } else { i18n::Language::En },\n",
+    "default fresh Android installs to Hebrew without changing the desktop default",
+)
+
 # 10. The sheet tabs and status row should follow the Hebrew shell's visual direction. The
 #     horizontal workbook data itself stays governed by each sheet's own right_to_left flag.
 patch(
