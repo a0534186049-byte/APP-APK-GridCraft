@@ -31,7 +31,7 @@ This is **not yet a claim of complete Hebrew parity**. Before describing the app
 3. Test the sheet-tab strip, scrollbar, status bar, ribbon overflow, formula bar, name box, and selection indicators on real Android screen sizes and with touch input.
 4. Verify Hebrew input-method composition, Backspace/Delete, cursor movement, selection, copy/paste, formula editing, and save/reopen round-trips in XLSX.
 5. Verify formulas and function names: the current formula locale is not a Hebrew formula-syntax translation. Formula names and separators must retain the spreadsheet format expected by GridCraft and Excel.
-6. Verify startup language selection and persistence on Android. Hebrew must be the initial language on a Hebrew-configured device, and a user-selected language must remain selected after restart.
+6. Android now sets Hebrew as the default for a fresh GridCraft UI state; desktop builds retain their English default. The Android builder loads any saved UI preference after creating the default state, so an existing user-selected language should take precedence. Verify both first launch and language persistence after restart.
 
 ## Test gate
 
