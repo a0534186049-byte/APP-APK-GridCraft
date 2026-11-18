@@ -1,0 +1,33 @@
+name: GridCraft Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: Build a test APK or a distributable signed Release
+        required: true
+        type: choice
+        default: debug
+        options:
+          - debug
+          - release
+      source_version:
+        description: Kept for traceability; GridCraft uses the pinned Hebrew source commit
+        required: true
+        type: choice
+        default: stable
+        options:
+          - stable
+          - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: a0534186049-byte/ArtCraft-Android-Common/.github/workflows/build-android-app.yml@a7d301f21cebaff853306d63cc4c641246fa1938
+    with:
+      app: gridcraft
+      build_mode: ${{ inputs.build_mode || 'debug' }}
+      source_version: ${{ inputs.source_version || 'stable' }}
+    secrets: inherit
