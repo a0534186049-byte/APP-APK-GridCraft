@@ -7,7 +7,7 @@ The spreadsheet application source is checked out from the pinned Hebrew/RTL dev
 ## Current build
 
 - Shared build pipeline: [ArtCraft-Android-Common](https://github.com/a0534186049-byte/ArtCraft-Android-Common)
-- Reusable workflow revision: `a7d301f21cebaff853306d63cc4c641246fa1938`
+- Reusable workflow revision: `2e5f4cc1c69783cf40534aca16f2317bac151b32`
 - App source repository: [storytold/gridcraft](https://github.com/storytold/gridcraft)
 - Hebrew/RTL source candidate: [shlomoappdev-netizen/gridcraft](https://github.com/shlomoappdev-netizen/gridcraft) at commit `ba06ef38575a1725a78e0d9099161f5c65db3646`
 - Android package ID: `com.artcraft.gridcraft`
