@@ -1,6 +1,13 @@
 name: GridCraft Android APK
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-android.yml'
+      - 'scripts/prepare-gridcraft-android.py'
+      - 'HEBREW_STATUS.md'
   workflow_dispatch:
     inputs:
       build_mode:
@@ -25,7 +32,7 @@ permissions:
 
 jobs:
   build:
-    uses: a0534186049-byte/ArtCraft-Android-Common/.github/workflows/build-android-app.yml@a7d301f21cebaff853306d63cc4c641246fa1938
+    uses: a0534186049-byte/ArtCraft-Android-Common/.github/workflows/build-android-app.yml@671a3b974522e63249b804f6beaed14e7a195abb
     with:
       app: gridcraft
       build_mode: ${{ inputs.build_mode || 'debug' }}
