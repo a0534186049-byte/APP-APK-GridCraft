@@ -12,12 +12,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-if len(sys.argv) != 2:
-    raise SystemExit("Usage: prepare-gridcraft-android.py <checked-out-gridcraft-source>")
+if len(sys.argv) not in (2, 3):
+    raise SystemExit("Usage: prepare-gridcraft-android.py <checked-out-gridcraft-source> [<artcraft-android-builder>]")
 
 ROOT = Path(sys.argv[1]).resolve()
+BUILDER_ROOT = Path(sys.argv[2]).resolve() if len(sys.argv) == 3 else None
 if not (ROOT / "Cargo.toml").is_file() or not (ROOT / "crates/ui-egui/src/i18n.rs").is_file():
     raise SystemExit(f"Not a GridCraft workspace: {ROOT}")
+if BUILDER_ROOT is not None and not (BUILDER_ROOT / "build.sh").is_file():
+    raise SystemExit(f"Not an ArtCraft Android Builder checkout: {BUILDER_ROOT}")
 
 pending: dict[Path, str] = {}
 changed: list[str] = []
@@ -600,7 +603,248 @@ patch(
     "document the actual Hebrew and web font boundaries",
 )
 
-# 11. Commit all changes only after all anchors have been verified.
+# 11. Mobile UI and Android input compatibility.
+# Backstage pages need both axes on compact portrait screens, and Options should open in a
+# screen-sized modal instead of being squeezed into the narrow backstage content column.
+patch(
+    "crates/ui-egui/src/backstage.rs",
+    "        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {\n",
+    "        egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {\n",
+    "allow horizontal and vertical scrolling in Backstage pages",
+)
+patch(
+    "crates/ui-egui/src/backstage.rs",
+    "                         Page::Options => options(app, ui),\n",
+    "                         Page::Options => {},\n",
+    "render Options in the responsive modal rather than the narrow page column",
+)
+patch(
+    "crates/ui-egui/src/backstage.rs",
+    "    });\n"
+    "    bs.text_edit_focused = ctx.text_edit_focused();\n",
+    "    });\n"
+    "    if bs.page == Page::Options {\n"
+    "        let screen = ctx.content_rect();\n"
+    "        let modal_size = vec2(\n"
+    "            (screen.width() - 24.0).clamp(220.0, 900.0),\n"
+    "            (screen.height() - 24.0).clamp(260.0, 1200.0),\n"
+    "        );\n"
+    "        let mut close = false;\n"
+    "        let response = egui::Modal::new(egui::Id::new(\"gridcraft-options-modal\")).show(&ctx, |ui| {\n"
+    "            ui.set_min_size(modal_size);\n"
+    "            ui.set_max_size(modal_size);\n"
+    "            let layout = if rtl { egui::Layout::right_to_left(egui::Align::Center) } else { egui::Layout::left_to_right(egui::Align::Center) };\n"
+    "            ui.with_layout(layout, |ui| {\n"
+    "                ui.label(RichText::new(lang.tr(\"Options\")).font(theme::ui_font(22.0)).color(t.text));\n"
+    "                ui.add_space(12.0);\n"
+    "                if ui.button(lang.tr(\"Close\")).clicked() { close = true; }\n"
+    "            });\n"
+    "            ui.separator();\n"
+    "            egui::ScrollArea::vertical()\n"
+    "                .id_salt(\"gridcraft-options-modal-scroll\")\n"
+    "                .auto_shrink([false, false])\n"
+    "                .show(ui, |ui| options(app, ui));\n"
+    "        });\n"
+    "        if close || response.should_close() {\n"
+    "            out.close = true;\n"
+    "        }\n"
+    "    }\n"
+    "    bs.text_edit_focused = ctx.text_edit_focused();\n",
+    "open Options in a responsive scrollable modal",
+)
+patch(
+    "crates/ui-egui/src/grid/show.rs",
+    "    let previous_popups = (app.grid.filter_menu, app.grid.list_picker, app.grid.header_menu, app.grid.fill_menu);\n"
+    "    // A pan the grid never saw end (it was hidden mid-drag) must not swallow the next press.\n"
+    "    if app.grid.touch_pan && !resp.dragged() && !resp.drag_stopped() {\n"
+    "        app.grid.touch_pan = false;\n"
+    "    }\n"
+    "    if app.grid.touch_pan {\n"
+    "        // Skip the frames of a touch pan, its release included.\n"
+    "        if !resp.dragged() {\n"
+    "            app.grid.touch_pan = false;\n"
+    "        }\n"
+    "    } else {\n"
+    "        crate::paper_view::interact(app, ui, resp, geo, sh, wb);\n"
+    "        interact(app, ui, resp, geo, sh, wb);\n"
+    "    }\n",
+    "    let previous_popups = (app.grid.filter_menu, app.grid.list_picker, app.grid.header_menu, app.grid.fill_menu);\n"
+    "    // The Android backend cancels the first touch when a two-finger pan/pinch takes over.\n"
+    "    // Drop any cell/object drag that began with that first finger, otherwise scrolling can\n"
+    "    // accidentally extend a cell selection or move an object under the gesture.\n"
+    "    let touch_gesture_cancelled = ui.input(|i| i.events.iter().any(|event| {\n"
+    "        matches!(event, egui::Event::Touch { phase: egui::TouchPhase::Cancel, .. })\n"
+    "    }));\n"
+    "    if touch_gesture_cancelled {\n"
+    "        app.grid.drag = Drag::None;\n"
+    "        app.grid.drag_select = false;\n"
+    "        app.grid.touch_pan = false;\n"
+    "    } else if app.grid.touch_pan && !resp.dragged() && !resp.drag_stopped() {\n"
+    "        // A pan the grid never saw end (it was hidden mid-drag) must not swallow the next press.\n"
+    "        app.grid.touch_pan = false;\n"
+    "    }\n"
+    "    if touch_gesture_cancelled {\n"
+    "        // The backend already emitted the scroll/zoom event; do not feed the cancelled press\n"
+    "        // into grid selection, object dragging or paper interaction.\n"
+    "    } else if app.grid.touch_pan {\n"
+    "        // Skip the frames of a one-finger touch pan, its release included.\n"
+    "        if !resp.dragged() {\n"
+    "            app.grid.touch_pan = false;\n"
+    "        }\n"
+    "    } else {\n"
+    "        crate::paper_view::interact(app, ui, resp, geo, sh, wb);\n"
+    "        interact(app, ui, resp, geo, sh, wb);\n"
+    "    }\n",
+    "cancel in-progress grid selection when the Android backend takes over for touch scrolling",
+)
+# GridCraft-specific patching of the shared Android launcher/IME bridge. This is limited to
+# the builder checkout supplied by the GridCraft workflow; it does not change any other app.
+def patch_builder(relative: str, old: str, new: str, label: str) -> None:
+    if BUILDER_ROOT is None:
+        raise SystemExit(f"[GridCraft Android] Builder checkout required for '{label}'.")
+    path = BUILDER_ROOT / relative
+    if not path.is_file():
+        raise SystemExit(f"[GridCraft Android] Required builder file is missing: {relative}")
+    current = pending.get(path)
+    if current is None:
+        current = path.read_text(encoding="utf-8")
+    if new in current:
+        already.append(label)
+        pending[path] = current
+        return
+    count = current.count(old)
+    if count != 1:
+        raise SystemExit(
+            f"[GridCraft Android] Refusing to patch {relative}: expected one exact anchor "
+            f"for '{label}', found {count}."
+        )
+    pending[path] = current.replace(old, new, 1)
+    changed.append(label)
+
+patch_builder(
+    "templates/android/SafActivity.java",
+    "    public void onImeDelete() {\n"
+    "        imeQueue.add(\"\\b\");\n"
+    "        wakeNativeLoop();\n"
+    "    }\n",
+    "    public void onImeDelete() {\n"
+    "        imeQueue.add(\"\\b\");\n"
+    "        wakeNativeLoop();\n"
+    "    }\n\n"
+    "    /** Forward an IME's range deletion as one structured edit, not repeated Backspace keys. */\n"
+    "    public void onImeDeleteSurrounding(int beforeChars, int afterChars) {\n"
+    "        if (beforeChars < 0 || afterChars < 0 || (beforeChars == 0 && afterChars == 0)) return;\n"
+    "        int before = Math.min(beforeChars, 4000);\n"
+    "        int after = Math.min(afterChars, 4000);\n"
+    "        imeQueue.add(String.valueOf((char) 1) + \"DS:\" + before + \":\" + after);\n"
+    "        wakeNativeLoop();\n"
+    "    }\n",
+    "forward Android IME surrounding deletion from the Activity",
+)
+patch_builder(
+    "templates/android/SafActivity.java",
+    "                @Override\n"
+    "                public Editable getEditable() {\n"
+    "                    return editable;\n"
+    "                }\n\n"
+    "                @Override\n"
+    "                public boolean sendKeyEvent(KeyEvent event) {",
+    "                @Override\n"
+    "                public Editable getEditable() {\n"
+    "                    return editable;\n"
+    "                }\n\n"
+    "                // Android reports surrounding lengths in UTF-16 units, while egui edits\n"
+    "                // Unicode characters. Convert only when the requested range is in the\n"
+    "                // current shadow buffer; otherwise retain Android's count as a safe fallback.\n"
+    "                private int codePointsBefore(int utf16Units) {\n"
+    "                    int start = Selection.getSelectionStart(editable);\n"
+    "                    int end = Selection.getSelectionEnd(editable);\n"
+    "                    if (start < 0 || end < 0 || start != end || start > editable.length() || utf16Units > start) return utf16Units;\n"
+    "                    int from = start - utf16Units;\n"
+    "                    if (from > 0 && from < start && Character.isLowSurrogate(editable.charAt(from)) && Character.isHighSurrogate(editable.charAt(from - 1))) from--;\n"
+    "                    return Character.codePointCount(editable, from, start);\n"
+    "                }\n\n"
+    "                private int codePointsAfter(int utf16Units) {\n"
+    "                    int start = Selection.getSelectionStart(editable);\n"
+    "                    int end = Selection.getSelectionEnd(editable);\n"
+    "                    if (start < 0 || end < 0 || start != end || end > editable.length() || utf16Units > editable.length() - end) return utf16Units;\n"
+    "                    int to = end + utf16Units;\n"
+    "                    if (to > 0 && to < editable.length() && Character.isHighSurrogate(editable.charAt(to - 1)) && Character.isLowSurrogate(editable.charAt(to))) to++;\n"
+    "                    return Character.codePointCount(editable, end, to);\n"
+    "                }\n\n"
+    "                private boolean forwardDeleteSurrounding(int beforeLength, int afterLength, boolean codePoints) {\n"
+    "                    if (beforeLength < 0 || afterLength < 0) return false;\n"
+    "                    if (beforeLength == 0 && afterLength == 0) return true;\n"
+    "                    int beforeChars = codePoints ? beforeLength : codePointsBefore(beforeLength);\n"
+    "                    int afterChars = codePoints ? afterLength : codePointsAfter(afterLength);\n"
+    "                    boolean wasSuppressing = ArtCraftInputView.this.suppressingWatcher;\n"
+    "                    ArtCraftInputView.this.suppressingWatcher = true;\n"
+    "                    try {\n"
+    "                        if (codePoints) super.deleteSurroundingTextInCodePoints(beforeLength, afterLength);\n"
+    "                        else super.deleteSurroundingText(beforeLength, afterLength);\n"
+    "                    } finally {\n"
+    "                        ArtCraftInputView.this.suppressingWatcher = wasSuppressing;\n"
+    "                    }\n"
+    "                    onImeDeleteSurrounding(beforeChars, afterChars);\n"
+    "                    return true;\n"
+    "                }\n\n"
+    "                @Override\n"
+    "                public boolean deleteSurroundingText(int beforeLength, int afterLength) {\n"
+    "                    return forwardDeleteSurrounding(beforeLength, afterLength, false);\n"
+    "                }\n\n"
+    "                @Override\n"
+    "                public boolean deleteSurroundingTextInCodePoints(int beforeLength, int afterLength) {\n"
+    "                    return forwardDeleteSurrounding(beforeLength, afterLength, true);\n"
+    "                }\n\n"
+    "                @Override\n"
+    "                public boolean sendKeyEvent(KeyEvent event) {",
+    "forward correct UTF-16/code-point deletion ranges to egui",
+)
+patch_builder(
+    "vendor/egui-winit/src/lib.rs",
+    "use raw_window_handle::HasDisplayHandle;\n",
+    "use raw_window_handle::HasDisplayHandle;\n\n"
+    "/// Decode the private Android IME bridge message for DeleteSurrounding.\n"
+    "#[cfg(any(target_os = \"android\", test))]\n"
+    "fn parse_android_delete_surrounding(value: &str) -> Option<(usize, usize)> {\n"
+    "    let payload = value.strip_prefix(\"\\u{1}DS:\")?;\n"
+    "    let (before, after) = payload.split_once(':')?;\n"
+    "    if after.contains(':') { return None; }\n"
+    "    let before = before.parse::<usize>().ok()?;\n"
+    "    let after = after.parse::<usize>().ok()?;\n"
+    "    (before <= 4000 && after <= 4000).then_some((before, after))\n"
+    "}\n\n"
+    "#[cfg(test)]\n"
+    "mod android_ime_bridge_tests {\n"
+    "    use super::parse_android_delete_surrounding;\n"
+    "    #[test]\n"
+    "    fn parses_bounded_delete_surrounding_requests() {\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:1:0\"), Some((1, 0)));\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:4:2\"), Some((4, 2)));\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:0:0\"), Some((0, 0)));\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:4001:0\"), None);\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:-1:0\"), None);\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"\\u{1}DS:1\"), None);\n"
+    "        assert_eq!(parse_android_delete_surrounding(\"ordinary text\"), None);\n"
+    "    }\n"
+    "}\n",
+    "add a bounded Android IME DeleteSurrounding message decoder and tests",
+)
+patch_builder(
+    "vendor/egui-winit/src/lib.rs",
+    "            for ev in crate::ime::android::poll_all_ime_events() {\n"
+    "                if ev == \"\\x08\" {\n",
+    "            for ev in crate::ime::android::poll_all_ime_events() {\n"
+    "                if let Some((before_chars, after_chars)) = parse_android_delete_surrounding(&ev) {\n"
+    "                    self.egui_input.events.push(egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {\n"
+    "                        before_chars,\n"
+    "                        after_chars,\n"
+    "                    }));\n"
+    "                } else if ev == \"\\x08\" {\n",
+    "deliver Android IME range deletion as egui DeleteSurrounding",
+)
+
+# 12. Commit all changes only after every source and builder anchor has been verified.
 for path, text in pending.items():
     if path.exists():
         path.write_text(text, encoding="utf-8")
