@@ -270,6 +270,61 @@ patch(
     "write a tab-scoped ribbon overflow state",
 )
 
+
+def patch_many(relative: str, old: str, new: str, expected: int, label: str) -> None:
+    path = ROOT / relative
+    if not path.is_file():
+        raise SystemExit(f"[GridCraft Hebrew] Required file is missing: {relative}")
+    current = pending.get(path)
+    if current is None:
+        current = path.read_text(encoding="utf-8")
+
+    old_count = current.count(old)
+    new_count = current.count(new)
+    if old_count == 0 and new_count == expected:
+        already.append(label)
+        pending[path] = current
+        return
+    if old_count != expected:
+        raise SystemExit(
+            f"[GridCraft Hebrew] Refusing to patch {relative}: expected {expected} "
+            f"occurrences for '{label}', found {old_count} old and {new_count} new."
+        )
+    pending[path] = current.replace(old, new)
+    changed.append(label)
+
+
+# Keep the ribbon integration tests compatible with the per-tab overflow state above. The
+# harness already records its selected tab, so the helper always queries that tab's measurement.
+patch(
+    "crates/ui-egui/tests/it/ribbon_layout.rs",
+    "    h.run_steps(4);\\n"
+    "    h\\n"
+    "}\\n",
+    "    h.run_steps(4);\\n"
+    "    h\\n"
+    "}\\n\\n"
+    "fn ribbon_overflow(h: &Harness) -> RibbonOverflow {\\n"
+    "    RibbonOverflow::get(&h.ctx, &h.state().ui.ribbon_tab)\\n"
+    "}\\n",
+    "add a test helper for per-tab ribbon overflow",
+)
+patch_many(
+    "crates/ui-egui/tests/it/ribbon_layout.rs",
+    "RibbonOverflow::get(&h.ctx)",
+    "ribbon_overflow(&h)",
+    10,
+    "update ribbon layout tests to query the active tab",
+)
+patch_many(
+    "crates/ui-egui/tests/it/ribbon_layout.rs",
+    "RibbonOverflow::get(&app_at(700.0, t).ctx)",
+    "ribbon_overflow(&app_at(700.0, t))",
+    1,
+    "update ribbon tab discovery test to query its own tab",
+)
+
+
 # 7. Report malformed snapshot JSON instead of silently running the action with empty parameters.
 patch(
     "crates/ui-egui/examples/snapshot.rs",
