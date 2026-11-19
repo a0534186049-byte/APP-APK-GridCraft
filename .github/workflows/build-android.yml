@@ -14,7 +14,7 @@ on:
         description: Build a test APK or a distributable signed Release
         required: true
         type: choice
-        default: debug
+        default: release
         options:
           - debug
           - release
@@ -36,6 +36,6 @@ jobs:
     with:
       app: gridcraft
       common_ref: 969a35961fdda773dbecd6a09fa1830a0459c34c
-      build_mode: ${{ inputs.build_mode || 'debug' }}
+      build_mode: ${{ inputs.build_mode || 'release' }}
       source_version: ${{ inputs.source_version || 'stable' }}
     secrets: inherit
