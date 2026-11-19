@@ -32,10 +32,10 @@ permissions:
 
 jobs:
   build:
-    uses: a0534186049-byte/ArtCraft-Android-Common/.github/workflows/build-android-app.yml@c128f4e8ea7e9cb49179c646d63a9240ee69b236
+    uses: a0534186049-byte/ArtCraft-Android-Common/.github/workflows/build-android-app.yml@969a35961fdda773dbecd6a09fa1830a0459c34c
     with:
       app: gridcraft
-      common_ref: c128f4e8ea7e9cb49179c646d63a9240ee69b236
+      common_ref: 969a35961fdda773dbecd6a09fa1830a0459c34c
       build_mode: ${{ inputs.build_mode || 'debug' }}
       source_version: ${{ inputs.source_version || 'stable' }}
     secrets: inherit
