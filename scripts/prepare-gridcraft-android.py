@@ -614,8 +614,8 @@ patch(
 )
 patch(
     "crates/ui-egui/src/backstage.rs",
-    "                         Page::Options => options(app, ui),\n",
-    "                         Page::Options => {},\n",
+    "                        Page::Options => options(app, ui),\n",
+    "                        Page::Options => {},\n",
     "render Options in the responsive modal rather than the narrow page column",
 )
 patch(
