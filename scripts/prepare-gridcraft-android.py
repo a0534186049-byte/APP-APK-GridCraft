@@ -298,15 +298,15 @@ def patch_many(relative: str, old: str, new: str, expected: int, label: str) -> 
 # harness already records its selected tab, so the helper always queries that tab's measurement.
 patch(
     "crates/ui-egui/tests/it/ribbon_layout.rs",
-    "    h.run_steps(4);\\n"
-    "    h\\n"
-    "}\\n",
-    "    h.run_steps(4);\\n"
-    "    h\\n"
-    "}\\n\\n"
-    "fn ribbon_overflow(h: &Harness) -> RibbonOverflow {\\n"
-    "    RibbonOverflow::get(&h.ctx, &h.state().ui.ribbon_tab)\\n"
-    "}\\n",
+    "    h.run_steps(4);\n"
+    "    h\n"
+    "}\n",
+    "    h.run_steps(4);\n"
+    "    h\n"
+    "}\n\n"
+    "fn ribbon_overflow(h: &Harness) -> RibbonOverflow {\n"
+    "    RibbonOverflow::get(&h.ctx, &h.state().ui.ribbon_tab)\n"
+    "}\n",
     "add a test helper for per-tab ribbon overflow",
 )
 patch_many(
