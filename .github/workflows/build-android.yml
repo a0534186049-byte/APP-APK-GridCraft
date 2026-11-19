@@ -1,4 +1,5 @@
 name: GridCraft Android APK
+# Re-run release validation after the signing secrets were updated.
 
 on:
   push:
