@@ -844,6 +844,49 @@ patch_builder(
     "deliver Android IME range deletion as egui DeleteSurrounding",
 )
 
+
+# The shared launcher normally follows the physical sensor. GridCraft must instead honor
+# Android's user rotation setting, matching the verified WordCraft behavior.
+patch_builder(
+    "lib/build-common.sh",
+    '    config_changes = "orientation|keyboard|keyboardHidden|navigation|screenSize|screenLayout|smallestScreenSize|density|layoutDirection|uiMode|fontScale|locale"\\n',
+    '    config_changes = "orientation|keyboard|keyboardHidden|navigation|screenSize|screenLayout|smallestScreenSize|density|layoutDirection|uiMode|fontScale|locale"\\n'
+    '    screen_orientation = "user" if app == "gridcraft" else "sensor"\\n',
+    "honor Android user rotation preference for GridCraft",
+)
+
+# The builder emits the activity block in two shapes (SAF and non-SAF apps); both
+# must receive the per-app orientation value. Validate exactly two anchors.
+def patch_builder_many(relative: str, old: str, new: str, expected: int, label: str) -> None:
+    if BUILDER_ROOT is None:
+        raise SystemExit(f"[GridCraft Android] Builder checkout required for '{label}'.")
+    path = BUILDER_ROOT / relative
+    if not path.is_file():
+        raise SystemExit(f"[GridCraft Android] Required builder file is missing: {relative}")
+    current = pending.get(path)
+    if current is None:
+        current = path.read_text(encoding="utf-8")
+    if old not in current and current.count(new) == expected:
+        already.append(label)
+        pending[path] = current
+        return
+    count = current.count(old)
+    if count != expected:
+        raise SystemExit(
+            f"[GridCraft Android] Refusing to patch {relative}: expected {expected} exact anchors "
+            f"for '{label}', found {count}."
+        )
+    pending[path] = current.replace(old, new)
+    changed.append(label)
+
+patch_builder_many(
+    "lib/build-common.sh",
+    'orientation = "sensor"',
+    'orientation = "{screen_orientation}"',
+    2,
+    "apply user-controlled rotation in both Android launcher manifest templates",
+)
+
 # 12. Commit all changes only after every source and builder anchor has been verified.
 for path, text in pending.items():
     if path.exists():
