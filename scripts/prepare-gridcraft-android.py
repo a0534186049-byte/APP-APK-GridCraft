@@ -851,7 +851,7 @@ patch_builder(
     "lib/build-common.sh",
     '    config_changes = "orientation|keyboard|keyboardHidden|navigation|screenSize|screenLayout|smallestScreenSize|density|layoutDirection|uiMode|fontScale|locale"',
     '    config_changes = "orientation|keyboard|keyboardHidden|navigation|screenSize|screenLayout|smallestScreenSize|density|layoutDirection|uiMode|fontScale|locale"'
-    + "\\n" + '    screen_orientation = "user" if app == "gridcraft" else "sensor"',
+    + "\n" + '    screen_orientation = "user" if app == "gridcraft" else "sensor"',
     "honor Android user rotation preference for GridCraft",
 )
 
